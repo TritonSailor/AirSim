@@ -170,6 +170,12 @@ public: //types
         }
     };
 
+    struct CameraDirectorSetting {
+        Vector3r position = VectorMath::nanVector();
+        Rotation rotation = Rotation::nanRotation();
+        float follow_distance = Utils::nan<float>();
+    };
+
     struct VehicleSetting {
         //required
         std::string vehicle_name;
@@ -295,6 +301,9 @@ public: //fields
     std::map<std::string, PawnPath> pawn_paths; //path for pawn blueprint
     std::map<std::string, std::unique_ptr<VehicleSetting>> vehicles;
     CameraSetting camera_defaults;
+    CameraDirectorSetting camera_director;
+	  float speed_unit_factor =  1.0f;
+	  std::string speed_unit_label = "m\\s";
 
 public: //methods
     static AirSimSettings& singleton() 
@@ -320,6 +329,7 @@ public: //methods
 
         loadCoreSimModeSettings(settings_json, simmode_getter);
         loadDefaultCameraSetting(settings_json, camera_defaults);
+        loadCameraDirectorSetting(settings_json, camera_director, simmode_name);
         loadSubWindowsSettings(settings_json, subwindow_settings);
         loadViewModeSettings(settings_json);
         loadRecordingSetting(settings_json, recording_setting);
@@ -344,7 +354,7 @@ public: //methods
         std::string settings_filename = Settings::getUserDirectoryFullPath("settings.json");
         Settings& settings_json = Settings::loadJSonString("{}");
         //write some settings_json in new file otherwise the string "null" is written if all settings_json are empty
-        settings_json.setString("SeeDocsAt", "https://github.com/Microsoft/AirSim/blob/master/docs/settings_json.md");
+        settings_json.setString("SeeDocsAt", "https://github.com/Microsoft/AirSim/blob/master/docs/settings.md");
         settings_json.setDouble("SettingsVersion", 1.2);
 
         //TODO: there is a crash in Linux due to settings_json.saveJSonString(). Remove this workaround after we only support Unreal 4.17
@@ -460,7 +470,7 @@ private:
         if (view_mode_string == "") {
             if (simmode_name == "Multirotor")
                 view_mode_string = "FlyWithMe";
-            if (simmode_name == "ComputerVision")
+            else if (simmode_name == "ComputerVision")
                 view_mode_string = "Fpv";
             else
                 view_mode_string = "SpringArmChase";
@@ -563,7 +573,8 @@ private:
     static std::unique_ptr<VehicleSetting> createPX4VehicleSetting(const Settings& settings_json) 
     {
         //these settings_json are expected in same section, not in another child
-        auto vehicle_setting = std::unique_ptr<PX4VehicleSetting>(new PX4VehicleSetting());
+        std::unique_ptr<VehicleSetting> vehicle_setting_p = std::unique_ptr<VehicleSetting>(new PX4VehicleSetting());
+        PX4VehicleSetting* vehicle_setting = static_cast<PX4VehicleSetting*>(vehicle_setting_p.get());
 
         //TODO: we should be selecting remote if available else keyboard
         //currently keyboard is not supported so use rc as default
@@ -599,7 +610,7 @@ private:
         connection_info.baud_rate = settings_json.getInt("SerialBaudRate", connection_info.baud_rate);
         connection_info.model = settings_json.getString("Model", connection_info.model);
 
-        return vehicle_setting;
+        return vehicle_setting_p;
     }
 
     static Vector3r createVectorSetting(const Settings& settings_json, const Vector3r& default_vec)
@@ -939,7 +950,8 @@ private:
         is_record_ui_visible = settings_json.getBool("RecordUIVisible", true);
         engine_sound = settings_json.getBool("EngineSound", false);
         enable_rpc = settings_json.getBool("EnableRpc", enable_rpc);
-
+        speed_unit_factor = settings_json.getFloat("SpeedUnitFactor", 1.0f);
+        speed_unit_label = settings_json.getString("SpeedUnitLabel", "m\\s");
         log_messages_visible = settings_json.getBool("LogMessagesVisible", true);
 
         {   //load origin geopoint
@@ -973,6 +985,35 @@ private:
         }
     }
 
+    static void loadCameraDirectorSetting(const Settings& settings_json, 
+        CameraDirectorSetting& camera_director, const std::string& simmode_name)
+    {
+        camera_director = CameraDirectorSetting();
+
+        Settings child_json;
+        if (settings_json.getChild("CameraDirector", child_json)) {
+            camera_director.position = createVectorSetting(settings_json, camera_director.position);
+            camera_director.rotation = createRotationSetting(settings_json, camera_director.rotation);
+            camera_director.follow_distance = child_json.getFloat("FollowDistance", camera_director.follow_distance);
+        }
+
+        if (std::isnan(camera_director.follow_distance)) {
+            if (simmode_name == "Car")
+                camera_director.follow_distance = -8;
+            else
+                camera_director.follow_distance = -3;
+        }
+        if (std::isnan(camera_director.position.x()))
+            camera_director.position.x() = camera_director.follow_distance;
+        if (std::isnan(camera_director.position.y()))
+            camera_director.position.y() = 0;
+        if (std::isnan(camera_director.position.z())) {
+            if (simmode_name == "Car")
+                camera_director.position.z() = -4;
+            else
+                camera_director.position.z() = -2;
+        }
+    }
 
     void loadClockSettings(const Settings& settings_json)
     {

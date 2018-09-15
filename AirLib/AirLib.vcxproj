@@ -37,6 +37,8 @@
     <ClInclude Include="include\common\Common.hpp" />
     <ClInclude Include="include\common\CommonStructs.hpp" />
     <ClInclude Include="include\common\ClockFactory.hpp" />
+    <ClInclude Include="include\common\common_utils\bitmap_image.hpp" />
+    <ClInclude Include="include\common\common_utils\ColorUtils.hpp" />
     <ClInclude Include="include\common\common_utils\ctpl_stl.h" />
     <ClInclude Include="include\common\common_utils\EnumFlags.hpp" />
     <ClInclude Include="include\common\common_utils\ExceptionUtils.hpp" />
@@ -57,6 +59,8 @@
     <ClInclude Include="include\common\common_utils\Timer.hpp" />
     <ClInclude Include="include\common\common_utils\type_utils.hpp" />
     <ClInclude Include="include\common\common_utils\Utils.hpp" />
+    <ClInclude Include="include\common\common_utils\WindowsApisCommonPost.hpp" />
+    <ClInclude Include="include\common\common_utils\WindowsApisCommonPre.hpp" />
     <ClInclude Include="include\common\WorkerThread.hpp" />
     <ClInclude Include="include\common\EarthCelestial.hpp" />
     <ClInclude Include="include\common\SteppableClock.hpp" />

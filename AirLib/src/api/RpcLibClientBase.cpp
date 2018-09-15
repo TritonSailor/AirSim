@@ -15,15 +15,28 @@
 #include <vector>
 #include <thread>
 STRICT_MODE_OFF
+
 #ifndef RPCLIB_MSGPACK
 #define RPCLIB_MSGPACK clmdep_msgpack
 #endif // !RPCLIB_MSGPACK
-#undef check
+
 #ifdef nil
 #undef nil
 #endif // nil
+
+#include "common/common_utils/WindowsApisCommonPre.hpp"
+#undef FLOAT
+#undef check
 #include "rpc/client.h"
+//TODO: HACK: UE4 defines macro with stupid names like "check" that conflicts with msgpack library
+#ifndef check
+#define check(expr) (static_cast<void>((expr)))
+#endif
+#include "common/common_utils/WindowsApisCommonPost.hpp"
+
 #include "api/RpcLibAdapatorsBase.hpp"
+
+
 STRICT_MODE_ON
 #ifdef _MSC_VER
 __pragma(warning( disable : 4239))
@@ -90,7 +103,7 @@ int RpcLibClientBase::getMinRequiredClientVersion() const
 }
 int RpcLibClientBase::getServerVersion() const
 {
-    return pimpl_->client.call("getServerVersion").as<int>();
+	return pimpl_->client.call("getServerVersion").as<int>();
 }
 
 void RpcLibClientBase::reset()
@@ -157,7 +170,7 @@ int RpcLibClientBase::simGetSegmentationObjectID(const std::string& mesh_name) c
 
 CollisionInfo RpcLibClientBase::simGetCollisionInfo(const std::string& vehicle_name) const
 {
-    return pimpl_->client.call("getCollisionInfo", vehicle_name).as<RpcLibAdapatorsBase::CollisionInfo>().to();
+    return pimpl_->client.call("simGetCollisionInfo", vehicle_name).as<RpcLibAdapatorsBase::CollisionInfo>().to();
 }
 
 
@@ -261,6 +274,99 @@ const void* RpcLibClientBase::getClient() const
 {
     return &pimpl_->client;
 }
+
+//----------- APIs to control ACharacter in scene ----------/
+void RpcLibClientBase::simCharSetFaceExpression(const std::string& expression_name, float value, const std::string& character_name)
+{
+    pimpl_->client.call("simCharSetFaceExpression", expression_name, value, character_name);
+}
+
+float RpcLibClientBase::simCharGetFaceExpression(const std::string& expression_name, const std::string& character_name) const
+{
+    return pimpl_->client.call("simCharGetFaceExpression", expression_name, character_name).as<float>();
+}
+
+std::vector<std::string> RpcLibClientBase::simCharGetAvailableFaceExpressions()
+{
+    return pimpl_->client.call("simCharGetAvailableFaceExpressions").as<std::vector<std::string>>();
+}
+
+void RpcLibClientBase::simCharSetSkinDarkness(float value, const std::string& character_name)
+{
+    pimpl_->client.call("simCharSetSkinDarkness", character_name, value);
+}
+
+float RpcLibClientBase::simCharGetSkinDarkness(const std::string& character_name) const
+{
+    return pimpl_->client.call("simCharGetSkinDarkness", character_name).as<float>();
+}
+
+void RpcLibClientBase::simCharSetSkinAgeing(float value, const std::string& character_name)
+{
+    pimpl_->client.call("simCharSetSkinAgeing", character_name, value);
+}
+
+float RpcLibClientBase::simCharGetSkinAgeing(const std::string& character_name) const
+{
+    return pimpl_->client.call("simCharGetSkinAgeing", character_name).as<float>();
+}
+
+void RpcLibClientBase::simCharSetHeadRotation(const msr::airlib::Quaternionr& q, const std::string& character_name)
+{
+    pimpl_->client.call("simCharSetHeadRotation", RpcLibAdapatorsBase::Quaternionr(q), character_name);
+}
+
+msr::airlib::Quaternionr RpcLibClientBase::simCharGetHeadRotation(const std::string& character_name) const
+{
+    return pimpl_->client.call("simCharGetHeadRotation", character_name)
+        .as<RpcLibAdapatorsBase::Quaternionr>().to();
+}
+
+void RpcLibClientBase::simCharSetBonePose(const std::string& bone_name, const msr::airlib::Pose& pose, const std::string& character_name)
+{
+    pimpl_->client.call("simCharSetBonePose", bone_name, RpcLibAdapatorsBase::Pose(pose), character_name);
+}
+
+msr::airlib::Pose RpcLibClientBase::simCharGetBonePose(const std::string& bone_name, const std::string& character_name) const
+{
+    return pimpl_->client.call("simCharGetBonePose", bone_name, character_name)
+        .as<RpcLibAdapatorsBase::Pose>().to();
+}
+
+void RpcLibClientBase::simCharResetBonePose(const std::string& bone_name, const std::string& character_name)
+{
+    pimpl_->client.call("simCharResetBonePose", bone_name, character_name);
+}
+
+void RpcLibClientBase::simCharSetFacePreset(const std::string& preset_name, float value, const std::string& character_name)
+{
+    pimpl_->client.call("simCharSetFacePreset", preset_name, value, character_name);
+}
+void RpcLibClientBase::simSetFacePresets(const std::unordered_map<std::string, float>& presets, const std::string& character_name)
+{
+    pimpl_->client.call("simSetFacePresets", presets, character_name);
+}
+void RpcLibClientBase::simSetBonePoses(const std::unordered_map<std::string, msr::airlib::Pose>& poses, const std::string& character_name)
+{
+    std::unordered_map<std::string, RpcLibAdapatorsBase::Pose> r;
+    for (const auto& p : poses)
+        r[p.first] = RpcLibAdapatorsBase::Pose(p.second);
+
+    pimpl_->client.call("simSetBonePoses", r, character_name);
+}
+std::unordered_map<std::string, msr::airlib::Pose> RpcLibClientBase::simGetBonePoses(const std::vector<std::string>& bone_names, const std::string& character_name) const
+{
+    std::unordered_map<std::string, RpcLibAdapatorsBase::Pose> t =
+        pimpl_->client.call("simGetBonePoses", bone_names, character_name)
+            .as<std::unordered_map<std::string, RpcLibAdapatorsBase::Pose>>();
+
+    std::unordered_map<std::string, msr::airlib::Pose> r;
+    for (const auto& p : t)
+        r[p.first] = p.second.to();
+
+    return r;
+}
+
 
 }} //namespace
 
