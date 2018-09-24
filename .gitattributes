@@ -1,0 +1,4 @@
+*.pak filter=lfs diff=lfs merge=lfs -text
+*.debug filter=lfs diff=lfs merge=lfs -text
+*.sym filter=lfs diff=lfs merge=lfs -text
+Blocks filter=lfs diff=lfs merge=lfs -text
